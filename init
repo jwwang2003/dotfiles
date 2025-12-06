@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+########################
+# Configurable section #
+########################
+
+# List of plugins as "name|repo-url"
+PLUGINS=(
+  "zsh-autosuggestions|https://github.com/zsh-users/zsh-autosuggestions.git"
+  "zsh-syntax-highlighting|https://github.com/zsh-users/zsh-syntax-highlighting.git"
+  "zsh-z|https://github.com/agkozak/zsh-z.git"
+)
+
+# Path to your oh-my-zsh directory (relative to where you run this script)
+OHMYZSH_DIR=".oh-my-zsh"
+
+# Dotfiles bare repo path
+DOTFILES_GITDIR="$HOME/.dotfiles"
+
+########################
+# Argument parsing     #
+########################
+
+FORCE_MODE=0
+if [[ "${1-}" == "--force" || "${1-}" == "-f" ]]; then
+  FORCE_MODE=1
+fi
+
+########################
+# Plugin setup         #
+########################
+
+# Make sure oh-my-zsh directory exists
+if [[ ! -d "${OHMYZSH_DIR}" ]]; then
+  echo "Error: ${OHMYZSH_DIR} not found. Please clone or install oh-my-zsh first."
+  exit 1
+fi
+
+# Optional: clean caches when forcing
+if (( FORCE_MODE )); then
+  echo "FORCE mode: cleaning Oh My Zsh cache, logs, and *.zwc files..."
+
+  rm -rf "${OHMYZSH_DIR}/cache" "${OHMYZSH_DIR}/log" || true
+
+  # Remove compiled zsh cache files
+  find "${OHMYZSH_DIR}" -type f -name '*.zwc' -delete || true
+fi
+
+# Ensure plugins base dir exists
+PLUGINS_BASE="${OHMYZSH_DIR}/custom/plugins"
+mkdir -p "${PLUGINS_BASE}"
+
+for entry in "${PLUGINS[@]}"; do
+  name="${entry%%|*}"
+  repo="${entry#*|}"
+
+  target_dir="${PLUGINS_BASE}/${name}"
+
+  echo
+  echo "=== Plugin: ${name} ==="
+  echo "Target directory: ${target_dir}"
+  echo "Repository:       ${repo}"
+
+  if [[ -d "${target_dir}" ]]; then
+    if (( FORCE_MODE )); then
+      echo "Directory exists and FORCE mode is on – removing and recloning..."
+      rm -rf "${target_dir}"
+      git clone "${repo}" "${target_dir}"
+    else
+      if [[ -d "${target_dir}/.git" ]]; then
+        echo "Directory exists – pulling latest changes..."
+        git -C "${target_dir}" pull --ff-only || {
+          echo "Pull failed; you may want to rerun with --force to reclone."
+        }
+      else
+        echo "Directory exists but is not a git repo – removing and recloning..."
+        rm -rf "${target_dir}"
+        git clone "${repo}" "${target_dir}"
+      fi
+    fi
+  else
+    echo "Directory does not exist – cloning..."
+    git clone "${repo}" "${target_dir}"
+  fi
+done
+
+echo
+echo "All plugins processed."
+
+########################
+# Dotfiles alias setup #
+########################
+
+# Detect current shell and choose an rc file
+SHELL_NAME="${SHELL##*/}"
+case "${SHELL_NAME}" in
+  bash)
+    RC_FILE="${HOME}/.bashrc"
+    ;;
+  zsh)
+    RC_FILE="${HOME}/.zshrc"
+    ;;
+  fish)
+    RC_FILE="${HOME}/.config/fish/config.fish"
+    ;;
+  *)
+    RC_FILE="${HOME}/.profile"
+    ;;
+esac
+
+ALIAS_LINE="alias dotfiles='git --git-dir=/home/mx/.dotfiles --work-tree=/'"
+
+echo "Ensuring dotfiles alias exists in ${RC_FILE}..."
+
+mkdir -p "$(dirname "${RC_FILE}")"
+touch "${RC_FILE}"
+
+if grep -qxF "${ALIAS_LINE}" "${RC_FILE}"; then
+  echo "dotfiles alias already present in ${RC_FILE}."
+else
+  echo "${ALIAS_LINE}" >> "${RC_FILE}"
+  echo "Added dotfiles alias to ${RC_FILE}."
+fi
+
+########################
+# Init dotfiles bare   #
+########################
+
+# Initialize bare repo if missing
+if [[ ! -d "${DOTFILES_GITDIR}" ]]; then
+  echo "Initializing bare dotfiles repo at ${DOTFILES_GITDIR}..."
+  git init --bare "${DOTFILES_GITDIR}"
+fi
+
+# Enable aliases in this script
+if [[ -n "${BASH_VERSION-}" ]]; then
+  shopt -s expand_aliases
+fi
+alias dotfiles="git --git-dir=${DOTFILES_GITDIR} --work-tree=$HOME"
+
+if [[ -d "${DOTFILES_GITDIR}" ]]; then
+  echo "Setting dotfiles remote origin to git@github.com:jwwang2003/dotfiles.git..."
+  # Remove origin if it already exists, then add it
+  dotfiles remote remove origin 2>/dev/null || true
+  dotfiles remote add origin git@github.com:jwwang2003/dotfiles.git || true
+
+  echo "Fetching and checking out main branch from origin..."
+  if dotfiles fetch origin main; then
+    # Create/reset local main tracking origin/main
+    if ! dotfiles checkout -B main origin/main; then
+      echo "Warning: could not checkout main; you may have conflicting files in /."
+    fi
+  else
+    echo "Warning: could not fetch origin main; repo might be empty or SSH not set up."
+  fi
+
+  echo "Configuring dotfiles: status.showUntrackedFiles no"
+  dotfiles config --local status.showUntrackedFiles no || {
+    echo "Warning: failed to run 'dotfiles config --local status.showUntrackedFiles no'"
+  }
+else
+  echo "Warning: ${DOTFILES_GITDIR} does not exist; skipping dotfiles remote/config."
+fi
+
+echo
+echo "Init script completed."

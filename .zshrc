@@ -113,14 +113,14 @@ source $ZSH/oh-my-zsh.sh
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-GSETTINGS="/usr/bin/gsettings"
+# GSETTINGS="/usr/bin/gsettings"
 
 # Macbook proxy
 # export http_proxy=http://172.20.10.3:7890
 # export https_proxy=http://172.20.10.3:7890
 
 # Proxy
-export PROXY_HOST="100.103.145.11" # Macbook tailscale address
+export PROXY_HOST="127.0.0.1" # Macbook tailscale address
 export PROXY_PORT=7890
 
 export PROXY_HTTP="http://${PROXY_HOST}:${PROXY_PORT}"
@@ -144,13 +144,13 @@ export NO_PROXY="${no_proxy}"
 # Proxy toggl
 proxy_on () {
 	# Sets the ENV variables & changes system network proxy mode to 'manual'
-	$GSETTINGS set org.gnome.system.proxy mode "manual"
-	# HTTP
-	$GSETTINGS set org.gnome.system.proxy.http host "http://${PROXY_HOST}"
-	$GSETTINGS set org.gnome.system.proxy.http port "${PROXY_PORT}"
-	# HTTPS
-	$GSETTINGS set org.gnome.system.proxy.https host "http://${PROXY_HOST}"
-	$GSETTINGS set org.gnome.system.proxy.https port "${PROXY_PORT}"
+	# $GSETTINGS set org.gnome.system.proxy mode "manual"
+	# # HTTP
+	# $GSETTINGS set org.gnome.system.proxy.http host "http://${PROXY_HOST}"
+	# $GSETTINGS set org.gnome.system.proxy.http port "${PROXY_PORT}"
+	# # HTTPS
+	# $GSETTINGS set org.gnome.system.proxy.https host "http://${PROXY_HOST}"
+	# $GSETTINGS set org.gnome.system.proxy.https port "${PROXY_PORT}"
 	
 	export http_proxy="${PROXY_HTTP}"
 	export https_proxy="${PROXY_HTTPS}"
@@ -166,7 +166,7 @@ proxy_on () {
 }
 
 proxy_off () {
-	$GSETTINGS set org.gnome.system.proxy mode 'none'
+	# $GSETTINGS set org.gnome.system.proxy mode 'none'
 	unset http_proxy https_proxy ftp_proxy all_proxy
 	unset HTTP_PROXY HTTPS_PROXY FTP_PROXY ALL_PROXY
 	echo "Proxy disabled."
@@ -176,25 +176,26 @@ proxy_off () {
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/wjw/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+__conda_setup="$('/opt/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/home/wjw/anaconda3/etc/profile.d/conda.sh" ]; then
-        . "/home/wjw/anaconda3/etc/profile.d/conda.sh"
+    if [ -f "/opt/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/opt/anaconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/home/wjw/anaconda3/bin:$PATH"
+        export PATH="/opt/anaconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
 
 # Typst
-export PATH=/opt/typst:$PATH
+# export PATH=/opt/typst:$PATH
+export PATH=/opt/typst-aarch64-apple-darwin:$PATH
+export PATH=/opt/tinymist-aarch64-apple-darwin:$PATH
 
-# export LD_LIBRARY_PATH=/home/wjw/anaconda3/lib:$LD_LIBRARY_PATH
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-alias dotfiles=/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME
+alias dotfiles="/usr/bin/git --git-dir=$HOME/.dotfiles --work-tree=$HOME"
