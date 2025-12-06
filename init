@@ -109,7 +109,23 @@ case "${SHELL_NAME}" in
     ;;
 esac
 
-ALIAS_LINE="alias dotfiles='git --git-dir=/home/mx/.dotfiles --work-tree=/'"
+ALIAS_LINE="alias dotfiles='git --git-dir=\$HOME/.dotfiles --work-tree=\$HOME'"
+DTIG_ALIAS="alias dtig='GIT_DIR=\$HOME/.dotfiles GIT_WORK_TREE=\$HOME tig'"
+DOT_FUNCTION_HEADER="dot(){"
+read -r -d '' DOT_FUNCTION_BLOCK <<'EOF' || true
+dot(){
+  if [[ "$#" -eq 0 ]]; then
+    (cd /
+    for i in $(dotfiles ls-files); do
+      echo -n "$(dotfiles -c color.status=always status $i -s | sed "s#$i##")"
+      echo -e "¬/$i¬\e[0;33m$(dotfiles -c color.ui=always log -1 --format="%s" -- $i)\e[0m"
+    done
+    ) | column -t -s '¬'
+  else
+    dotfiles $*
+  fi
+}
+EOF
 
 echo "Ensuring dotfiles alias exists in ${RC_FILE}..."
 
@@ -123,14 +139,37 @@ else
   echo "Added dotfiles alias to ${RC_FILE}."
 fi
 
+echo "Ensuring dtig alias exists in ${RC_FILE}..."
+if grep -qxF "${DTIG_ALIAS}" "${RC_FILE}"; then
+  echo "dtig alias already present in ${RC_FILE}."
+else
+  echo "${DTIG_ALIAS}" >> "${RC_FILE}"
+  echo "Added dtig alias to ${RC_FILE}."
+fi
+
+echo "Ensuring dot() helper exists in ${RC_FILE}..."
+if grep -q "^${DOT_FUNCTION_HEADER}" "${RC_FILE}"; then
+  echo "dot() helper already present in ${RC_FILE}."
+else
+  {
+    echo
+    echo "${DOT_FUNCTION_BLOCK}"
+  } >> "${RC_FILE}"
+  echo "Added dot() helper to ${RC_FILE}."
+fi
+
 ########################
 # Init dotfiles bare   #
 ########################
 
+DOTFILES_CREATED=0
 # Initialize bare repo if missing
 if [[ ! -d "${DOTFILES_GITDIR}" ]]; then
   echo "Initializing bare dotfiles repo at ${DOTFILES_GITDIR}..."
   git init --bare "${DOTFILES_GITDIR}"
+  DOTFILES_CREATED=1
+else
+  echo "Dotfiles repo already exists at ${DOTFILES_GITDIR}; leaving as-is."
 fi
 
 # Enable aliases in this script
@@ -139,7 +178,7 @@ if [[ -n "${BASH_VERSION-}" ]]; then
 fi
 alias dotfiles="git --git-dir=${DOTFILES_GITDIR} --work-tree=$HOME"
 
-if [[ -d "${DOTFILES_GITDIR}" ]]; then
+if (( DOTFILES_CREATED )); then
   echo "Setting dotfiles remote origin to git@github.com:jwwang2003/dotfiles.git..."
   # Remove origin if it already exists, then add it
   dotfiles remote remove origin 2>/dev/null || true
@@ -160,7 +199,7 @@ if [[ -d "${DOTFILES_GITDIR}" ]]; then
     echo "Warning: failed to run 'dotfiles config --local status.showUntrackedFiles no'"
   }
 else
-  echo "Warning: ${DOTFILES_GITDIR} does not exist; skipping dotfiles remote/config."
+  echo "Existing dotfiles repo detected; skipping remote/config setup."
 fi
 
 echo

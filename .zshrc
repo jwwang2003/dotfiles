@@ -198,4 +198,21 @@ export PATH=/opt/tinymist-aarch64-apple-darwin:$PATH
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-alias dotfiles="/usr/bin/git --git-dir=$HOME/.dotfiles --work-tree=$HOME"
+
+
+alias dotfiles='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
+alias dtig='GIT_DIR=$HOME/.dotfiles GIT_WORK_TREE=$HOME tig'
+
+
+dot(){
+  if [[ "$#" -eq 0 ]]; then
+    (cd /
+    for i in $(dotfiles ls-files); do
+      echo -n "$(dotfiles -c color.status=always status $i -s | sed "s#$i##")"
+      echo -e "¬/$i¬\e[0;33m$(dotfiles -c color.ui=always log -1 --format="%s" -- $i)\e[0m"
+    done
+    ) | column -t -s '¬'
+  else
+    dotfiles $*
+  fi
+}
